@@ -75,6 +75,16 @@ Choose the Base URL for the actual network topology:
 
 See [private n8n connectivity](docs/n8n-connectivity.md) for Docker examples and boundary guidance.
 
+### Deterministic demonstration posting
+
+Use the repository's [public synthetic posting](docs/demo-posting.html) when a repeatable installation or integration demonstration must not depend on a third-party job board:
+
+```text
+https://raw.githubusercontent.com/orbruno/job-availability-api/main/docs/demo-posting.html
+```
+
+Expected title: `Synthetic Data Engineer`. Expected company: `Example Organization`. The fixture contains synthetic data only and is not production availability evidence.
+
 ## Stateless and durable use
 
 Posting **Observe** works without a stored job inventory. Durable run and job operations require a compatible `jobs/index.json` plus one `metadata.json` per registered job. The API intentionally does not own job discovery or registration.
@@ -97,6 +107,7 @@ The complete gate runs linting, strict type-checking, OpenAPI/schema/fixture val
 
 - [Operations](docs/operations.md)
 - [Private n8n connectivity](docs/n8n-connectivity.md)
+- [Deterministic demonstration posting](docs/demo-posting.html)
 - [Data layout](docs/data-layout.md)
 - [Architecture](docs/architecture.md)
 - [Threat model](docs/threat-model.md)

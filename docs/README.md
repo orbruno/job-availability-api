@@ -4,6 +4,7 @@
 - [Threat model](threat-model.md): assets, adversaries, controls, and residual risks.
 - [Operations](operations.md): install, provision, start, verify, rotate, revoke, diagnose, and uninstall.
 - [Private n8n connectivity](n8n-connectivity.md): host and shared-Docker-network topologies.
+- [Deterministic demonstration posting](demo-posting.html): stable public synthetic input for installation and integration demonstrations.
 - [Data layout](data-layout.md): stateless observation and durable inventory requirements.
 - [Contract origins](contract-origins.md): public authority and historical fixture provenance.
 - [Backup and restore](backup-and-restore.md): consistent backup and isolated restoration drill.
