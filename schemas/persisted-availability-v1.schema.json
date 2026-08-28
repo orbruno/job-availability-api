@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://job-availability.local/schemas/persisted-availability-v1.schema.json",
+  "title": "Job Availability persisted documents version 1",
+  "$defs": {
+    "SchemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|\\+00:00)$",
+      "maxLength": 35
+    },
+    "NullableUtcTimestamp": {
+      "oneOf": [
+        { "$ref": "#/$defs/UtcTimestamp" },
+        { "type": "null" }
+      ]
+    },
+    "JobId": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/JobId"
+    },
+    "RunId": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/RunId"
+    },
+    "AvailabilityStatus": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/AvailabilityStatus"
+    },
+    "EvidenceOutcome": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/EvidenceOutcome"
+    },
+    "EvidenceCode": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/EvidenceCode"
+    },
+    "RunStatus": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/RunStatus"
+    },
+    "SourceObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "source_identity",
+        "outcome",
+        "evidence_code",
+        "checked_at",
+        "http_status"
+      ],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "source_identity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "outcome": { "$ref": "#/$defs/EvidenceOutcome" },
+        "evidence_code": { "$ref": "#/$defs/EvidenceCode" },
+        "checked_at": { "$ref": "#/$defs/UtcTimestamp" },
+        "http_status": {
+          "type": ["integer", "null"],
+          "minimum": 100,
+          "maximum": 599
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "outcome": { "const": "open" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "evidence_code": {
+                "enum": [
+                  "jobposting_active",
+                  "apply_action_present",
+                  "platform_open_marker"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "closed" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "evidence_code": {
+                "enum": [
+                  "http_404",
+                  "http_410",
+                  "valid_through_past",
+                  "platform_closed_marker"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "inconclusive" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "evidence_code": {
+                "enum": [
+                  "access_denied",
+                  "rate_limited",
+                  "server_error",
+                  "timeout",
+                  "network_error",
+                  "bot_challenge",
+                  "redirect_mismatch",
+                  "identity_mismatch",
+                  "identity_unverified",
+                  "unsupported_source",
+                  "parse_error"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "HistoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "checked_at", "status", "source_outcomes"],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/RunId" },
+        "checked_at": { "$ref": "#/$defs/UtcTimestamp" },
+        "status": { "$ref": "#/$defs/AvailabilityStatus" },
+        "source_outcomes": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/SourceObservation" }
+        }
+      }
+    },
+    "AvailabilityStateDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "job_id",
+        "status",
+        "last_checked_at",
+        "last_run_id",
+        "closure_run_ids",
+        "sources",
+        "history"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "job_id": { "$ref": "#/$defs/JobId" },
+        "status": { "$ref": "#/$defs/AvailabilityStatus" },
+        "last_checked_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "last_run_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/RunId" },
+            { "type": "null" }
+          ]
+        },
+        "closure_run_ids": {
+          "type": "array",
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RunId" }
+        },
+        "sources": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/SourceObservation" }
+        },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/HistoryEntry" }
+        }
+      }
+    },
+    "RunSummary": {
+      "$ref": "https://job-availability.local/schemas/public-api-v1.schema.json#/$defs/RunSummary"
+    },
+    "PersistedRunError": {
+      "type": "object",
+      "maxProperties": 16,
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "$comment": "Python v1 stores dictionary-of-string operational errors. Public projection converts these to the bounded RunError DTO."
+    },
+    "AvailabilityRunDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "run_id",
+        "status",
+        "trigger",
+        "created_at",
+        "started_at",
+        "completed_at",
+        "job_ids",
+        "pending_job_ids",
+        "processed_job_ids",
+        "errors",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "run_id": { "$ref": "#/$defs/RunId" },
+        "status": { "$ref": "#/$defs/RunStatus" },
+        "trigger": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "created_at": { "$ref": "#/$defs/UtcTimestamp" },
+        "started_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "completed_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "job_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/JobId" }
+        },
+        "pending_job_ids": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/JobId" }
+        },
+        "processed_job_ids": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/JobId" }
+        },
+        "errors": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": { "$ref": "#/$defs/PersistedRunError" }
+        },
+        "summary": { "$ref": "#/$defs/RunSummary" }
+      }
+    },
+    "PerJobEvidenceDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "before", "after", "observations"],
+      "properties": {
+        "job_id": { "$ref": "#/$defs/JobId" },
+        "before": { "$ref": "#/$defs/AvailabilityStatus" },
+        "after": { "$ref": "#/$defs/AvailabilityStatus" },
+        "observations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/SourceObservation" }
+        }
+      }
+    }
+  }
+}

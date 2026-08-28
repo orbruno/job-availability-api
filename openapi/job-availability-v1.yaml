@@ -1,0 +1,505 @@
+openapi: 3.1.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: Job Availability Service API
+  version: 1.0.0
+  description: |
+    Authenticated local, single-operator API for deterministic posting observations
+    and durable job-availability runs. Every request is authenticated. Every POST
+    requires an idempotency key, is limited to 256 KiB, and returns replay state.
+
+    Idempotency scope is global to the authenticated operator. The service persists
+    only the SHA-256 digest of the raw key. Its request fingerprint covers the method,
+    normalized route and path identifiers, and RFC 8785 canonical JSON for the
+    normalized effective body. Same-key concurrent duplicates wait for the committed
+    result. Same-key same-request calls replay the committed status and domain payload;
+    same-key different-request calls return 409. Committed mutation results are kept
+    for 24 hours. Authentication, validation, rate-limit, unsupported-media,
+    oversized-body, and pre-admission unavailable responses are not recorded.
+  contact:
+    name: Orlando Bruno
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://127.0.0.1:5002
+    description: Local default
+security:
+  - bearerAuth: []
+tags:
+  - name: Credentials
+  - name: Postings
+  - name: Availability Runs
+  - name: Jobs
+x-request-body-max-bytes: 262144
+x-idempotency:
+  key-retention-hours: 24
+  scope: authenticated-operator
+  persisted-key: sha256-digest-only
+  request-body-canonicalization: RFC-8785
+paths:
+  /v1/credentials/test:
+    get:
+      operationId: testCredentials
+      tags: [Credentials]
+      summary: Test service credentials and readiness
+      parameters:
+        - $ref: '#/components/parameters/N8nExecutionId'
+      responses:
+        '200':
+          description: Token is valid and the service is ready.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialTestResponse'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '429':
+          $ref: '#/components/responses/ProblemResponse'
+        '500':
+          $ref: '#/components/responses/ProblemResponse'
+        '503':
+          $ref: '#/components/responses/ProblemResponse'
+  /v1/postings/observe:
+    post:
+      operationId: observePosting
+      tags: [Postings]
+      summary: Observe one posting without creating a canonical job
+      description: |
+        Classifies one bounded source observation. An inaccessible, challenged,
+        unsupported, or unverifiable posting is a successful domain response with
+        outcome `inconclusive`, never a closure response.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservePostingRequest'
+      responses:
+        '200':
+          description: Bounded deterministic source observation.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservePostingResponse'
+        '400':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '401':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '409':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '413':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '415':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '429':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '500':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '503':
+          $ref: '#/components/responses/MutationProblemResponse'
+  /v1/availability/runs:
+    post:
+      operationId: createAvailabilityRun
+      tags: [Availability Runs]
+      summary: Create a run for an explicit job selection
+      description: |
+        Accepts 1–100 exact existing canonical job identifiers, then stable-deduplicates
+        them by first occurrence for the durable run. The raw selection may contain
+        duplicates but may not exceed 100 entries.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRunRequest'
+      responses:
+        '201':
+          description: Durable run created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '401':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '404':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '409':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '413':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '415':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '429':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '500':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '503':
+          $ref: '#/components/responses/MutationProblemResponse'
+  /v1/availability/runs/scheduled:
+    post:
+      operationId: createScheduledAvailabilityRun
+      tags: [Availability Runs]
+      summary: Create a fixed-trigger run from the canonical inventory
+      description: |
+        Atomically snapshots every unique canonical inventory job and fixes the
+        trigger to `schedule`. The request accepts neither job IDs nor a trigger.
+        Empty inventories and inventories above 1,000 jobs fail without truncation.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduledRunRequest'
+      responses:
+        '201':
+          description: Scheduled durable run created from the full snapshot.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '401':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '409':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '413':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '415':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '429':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '500':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '503':
+          $ref: '#/components/responses/MutationProblemResponse'
+  /v1/availability/runs/{run_id}:
+    get:
+      operationId: getAvailabilityRun
+      tags: [Availability Runs]
+      summary: Get one bounded durable run
+      description: |
+        Full `job_count`, `pending_count`, `processed_count`, and `error_count`
+        values remain available when arrays are projected. Pending IDs are the
+        first 100. Processed IDs and redacted errors are the most recent 100.
+        Each collection has an explicit truncation flag.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      responses:
+        '200':
+          description: Bounded run state.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '404':
+          $ref: '#/components/responses/ProblemResponse'
+        '429':
+          $ref: '#/components/responses/ProblemResponse'
+        '500':
+          $ref: '#/components/responses/ProblemResponse'
+        '503':
+          $ref: '#/components/responses/ProblemResponse'
+  /v1/availability/runs/{run_id}/jobs/{job_id}/check:
+    post:
+      operationId: checkJobAvailability
+      tags: [Jobs]
+      summary: Check one registered job in a durable run
+      description: |
+        The operation is bodyless. A repeated committed request does not fetch or
+        mutate again. Path job identifiers are decoded exactly once, NFC-normalized,
+        resolved to one exact canonical inventory member, and replaced by that stored
+        identifier before confined access.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/JobId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      responses:
+        '200':
+          description: Bounded before-and-after availability result.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckJobResponse'
+        '400':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '401':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '404':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '409':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '413':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '415':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '429':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '500':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '503':
+          $ref: '#/components/responses/MutationProblemResponse'
+  /v1/jobs/{job_id}/availability:
+    get:
+      operationId: getJobAvailability
+      tags: [Jobs]
+      summary: Get bounded current availability state
+      description: |
+        Returns no more than 20 five-field observations. Parseable timestamps sort
+        newest first; invalid or absent timestamps follow with stored order as the
+        stable tie-breaker. Source identity, URLs, titles, content, headers, workflow
+        payloads, and credentials are never projected.
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      responses:
+        '200':
+          description: Current bounded job availability.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobAvailability'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '404':
+          $ref: '#/components/responses/ProblemResponse'
+        '429':
+          $ref: '#/components/responses/ProblemResponse'
+        '500':
+          $ref: '#/components/responses/ProblemResponse'
+        '503':
+          $ref: '#/components/responses/ProblemResponse'
+  /v1/availability/runs/{run_id}/finalize:
+    post:
+      operationId: finalizeAvailabilityRun
+      tags: [Availability Runs]
+      summary: Finalize a run with no pending jobs
+      description: The operation is bodyless and fails while pending work remains.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      responses:
+        '200':
+          description: Completed or truthfully failed terminal run.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '401':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '404':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '409':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '413':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '415':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '429':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '500':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '503':
+          $ref: '#/components/responses/MutationProblemResponse'
+  /v1/availability/runs/{run_id}/cancel:
+    post:
+      operationId: cancelAvailabilityRun
+      tags: [Availability Runs]
+      summary: Make a run terminally cancelled
+      description: |
+        The operation is bodyless. In-flight completion cannot resurrect a cancelled
+        run. Recovery creates a new run identity and preserves the cancelled record.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/N8nExecutionId'
+      responses:
+        '200':
+          description: Terminally cancelled run.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '401':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '404':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '409':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '413':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '415':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '429':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '500':
+          $ref: '#/components/responses/MutationProblemResponse'
+        '503':
+          $ref: '#/components/responses/MutationProblemResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-service-token
+      description: At least 32 cryptographically random bytes before encoding.
+  parameters:
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      description: Server-issued durable run identifier.
+      schema:
+        $ref: '#/components/schemas/RunId'
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      allowReserved: false
+      description: Exact canonical inventory identifier after one decode and NFC resolution.
+      schema:
+        $ref: '#/components/schemas/JobId'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Visible-ASCII operator key retained for 24 hours as a SHA-256 digest.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[\x21-\x7E]{1,128}$'
+    N8nExecutionId:
+      name: X-N8N-Execution-Id
+      in: header
+      required: false
+      description: Optional bounded correlation identifier; never used for authorization.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[\x21-\x7E]{1,128}$'
+  headers:
+    RequestId:
+      description: Service-generated request correlation identifier.
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._-]+$'
+    IdempotencyReplayed:
+      description: True only when the committed result was replayed without work.
+      required: true
+      schema:
+        type: boolean
+  responses:
+    ProblemResponse:
+      description: RFC 9457-compatible bounded problem document.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    MutationProblemResponse:
+      description: RFC 9457-compatible bounded mutation problem document.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Idempotency-Replayed:
+          $ref: '#/components/headers/IdempotencyReplayed'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    CredentialTestResponse:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/CredentialTestResponse
+    ObservePostingRequest:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/ObservePostingRequest
+    ObservePostingResponse:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/ObservePostingResponse
+    CreateRunRequest:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/CreateRunRequest
+    CreateScheduledRunRequest:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/CreateScheduledRunRequest
+    Run:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/Run
+    RunId:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/RunId
+    JobId:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/JobId
+    CheckJobResponse:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/CheckJobResponse
+    JobAvailability:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/JobAvailability
+    Problem:
+      $ref: ../schemas/public-api-v1.schema.json#/$defs/Problem

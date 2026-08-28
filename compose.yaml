@@ -1,0 +1,34 @@
+services:
+  job-availability:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      JOB_AVAILABILITY_DATA_ROOT: /var/lib/job-availability
+      JOB_AVAILABILITY_HOST: 0.0.0.0
+      JOB_AVAILABILITY_HOST_SPACING_MS: "1000"
+      JOB_AVAILABILITY_OWNER_KEY: local-operator
+      JOB_AVAILABILITY_PORT: "5002"
+      JOB_AVAILABILITY_TOKEN_FILE: /run/secrets/job-availability-token
+    ports:
+      - "127.0.0.1:5002:5002"
+    volumes:
+      - job-availability-data:/var/lib/job-availability
+    secrets:
+      - source: job-availability-token
+        target: job-availability-token
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  job-availability-data:
+
+secrets:
+  job-availability-token:
+    file: ${JOB_AVAILABILITY_COMPOSE_TOKEN_FILE:?set JOB_AVAILABILITY_COMPOSE_TOKEN_FILE}

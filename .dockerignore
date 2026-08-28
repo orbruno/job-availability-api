@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+.secrets
+AGENTS.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+coverage
+data
+dist
+docs
+node_modules
+openapi
+test
+_Context__Job-Availability-Service.md
+*.log

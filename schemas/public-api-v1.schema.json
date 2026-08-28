@@ -1,0 +1,535 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://job-availability.local/schemas/public-api-v1.schema.json",
+  "title": "Job Availability public API version 1",
+  "$defs": {
+    "SchemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$",
+      "maxLength": 35
+    },
+    "NullableUtcTimestamp": {
+      "oneOf": [
+        { "$ref": "#/$defs/UtcTimestamp" },
+        { "type": "null" }
+      ]
+    },
+    "JobId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^(?!\\.{1,2}$)(?!.*%(?:2[fF]|5[cC]))[^/\\\\\\u0000-\\u001F\\u007F-\\u009F]+$",
+      "x-max-utf8-bytes": 255,
+      "$comment": "The service additionally percent-decodes exactly once, normalizes to NFC, enforces 255 UTF-8 bytes, rejects ambiguous or nonmember values, and substitutes the exact stored identifier."
+    },
+    "RunId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "Platform": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "Trigger": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "AvailabilityStatus": {
+      "type": "string",
+      "enum": [
+        "unchecked",
+        "open",
+        "likely_closed",
+        "closed",
+        "uncertain"
+      ]
+    },
+    "EvidenceOutcome": {
+      "type": "string",
+      "enum": ["open", "closed", "inconclusive"]
+    },
+    "EvidenceCode": {
+      "type": "string",
+      "enum": [
+        "jobposting_active",
+        "apply_action_present",
+        "platform_open_marker",
+        "http_404",
+        "http_410",
+        "valid_through_past",
+        "platform_closed_marker",
+        "access_denied",
+        "rate_limited",
+        "server_error",
+        "timeout",
+        "network_error",
+        "bot_challenge",
+        "redirect_mismatch",
+        "identity_mismatch",
+        "identity_unverified",
+        "unsupported_source",
+        "parse_error"
+      ]
+    },
+    "RunStatus": {
+      "type": "string",
+      "enum": ["pending", "running", "completed", "cancelled", "failed"]
+    },
+    "SourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "outcome",
+        "evidence_code",
+        "checked_at",
+        "http_status"
+      ],
+      "properties": {
+        "platform": {
+          "oneOf": [
+            { "$ref": "#/$defs/Platform" },
+            { "type": "null" }
+          ]
+        },
+        "outcome": {
+          "oneOf": [
+            { "$ref": "#/$defs/EvidenceOutcome" },
+            { "type": "null" }
+          ]
+        },
+        "evidence_code": {
+          "oneOf": [
+            { "$ref": "#/$defs/EvidenceCode" },
+            { "type": "null" }
+          ]
+        },
+        "checked_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "http_status": {
+          "type": ["integer", "null"],
+          "minimum": 100,
+          "maximum": 599
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "outcome": { "const": null } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": { "evidence_code": { "const": null } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "evidence_code": { "const": null } },
+            "required": ["evidence_code"]
+          },
+          "then": {
+            "properties": { "outcome": { "const": null } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "open" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "evidence_code": {
+                "enum": [
+                  "jobposting_active",
+                  "apply_action_present",
+                  "platform_open_marker"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "closed" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "evidence_code": {
+                "enum": [
+                  "http_404",
+                  "http_410",
+                  "valid_through_past",
+                  "platform_closed_marker"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "inconclusive" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "evidence_code": {
+                "enum": [
+                  "access_denied",
+                  "rate_limited",
+                  "server_error",
+                  "timeout",
+                  "network_error",
+                  "bot_challenge",
+                  "redirect_mismatch",
+                  "identity_mismatch",
+                  "identity_unverified",
+                  "unsupported_source",
+                  "parse_error"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CredentialTestResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "service_version", "ready"],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "service_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "ready": { "const": true }
+      }
+    },
+    "ObservePostingRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "platform", "url", "expected_title"],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "platform": { "$ref": "#/$defs/Platform" },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "minLength": 1,
+          "maxLength": 2048,
+          "$comment": "The service rejects embedded credentials and every unsafe initial or redirect target."
+        },
+        "expected_title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "expected_company": {
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    },
+    "ObservePostingResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "service_version",
+        "duration_ms",
+        "observation"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "service_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "observation": { "$ref": "#/$defs/SourceEvidence" }
+      }
+    },
+    "CreateRunRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "job_ids", "trigger"],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "job_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/JobId" }
+        },
+        "trigger": { "$ref": "#/$defs/Trigger" }
+      }
+    },
+    "CreateScheduledRunRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version"],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" }
+      }
+    },
+    "RunSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checked",
+        "open",
+        "likely_closed",
+        "closed",
+        "uncertain",
+        "unchecked",
+        "newly_closed",
+        "reopened",
+        "failed"
+      ],
+      "properties": {
+        "checked": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "open": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "likely_closed": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "closed": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "uncertain": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "unchecked": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "newly_closed": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "reopened": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "failed": { "type": "integer", "minimum": 0, "maximum": 1000 }
+      }
+    },
+    "RunError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "code", "occurred_at"],
+      "properties": {
+        "job_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/JobId" },
+            { "type": "null" }
+          ]
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "occurred_at": { "$ref": "#/$defs/UtcTimestamp" }
+      }
+    },
+    "Run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "run_id",
+        "status",
+        "trigger",
+        "created_at",
+        "started_at",
+        "completed_at",
+        "job_count",
+        "pending_count",
+        "processed_count",
+        "error_count",
+        "summary",
+        "pending_job_ids",
+        "pending_job_ids_truncated",
+        "processed_job_ids",
+        "processed_job_ids_truncated",
+        "errors",
+        "errors_truncated"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "run_id": { "$ref": "#/$defs/RunId" },
+        "status": { "$ref": "#/$defs/RunStatus" },
+        "trigger": { "$ref": "#/$defs/Trigger" },
+        "created_at": { "$ref": "#/$defs/UtcTimestamp" },
+        "started_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "completed_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "job_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "pending_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "processed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "error_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "summary": { "$ref": "#/$defs/RunSummary" },
+        "pending_job_ids": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/JobId" }
+        },
+        "pending_job_ids_truncated": { "type": "boolean" },
+        "processed_job_ids": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/JobId" }
+        },
+        "processed_job_ids_truncated": { "type": "boolean" },
+        "errors": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/RunError" }
+        },
+        "errors_truncated": { "type": "boolean" }
+      }
+    },
+    "JobAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "job_id",
+        "status",
+        "last_checked_at",
+        "last_run_id",
+        "closure_run_ids",
+        "sources",
+        "sources_truncated"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "job_id": { "$ref": "#/$defs/JobId" },
+        "status": { "$ref": "#/$defs/AvailabilityStatus" },
+        "last_checked_at": { "$ref": "#/$defs/NullableUtcTimestamp" },
+        "last_run_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/RunId" },
+            { "type": "null" }
+          ]
+        },
+        "closure_run_ids": {
+          "type": "array",
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RunId" }
+        },
+        "sources": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/SourceEvidence" }
+        },
+        "sources_truncated": { "type": "boolean" }
+      }
+    },
+    "CheckJobResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "run_id",
+        "job_id",
+        "before",
+        "after",
+        "checked_at",
+        "sources",
+        "sources_truncated"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "run_id": { "$ref": "#/$defs/RunId" },
+        "job_id": { "$ref": "#/$defs/JobId" },
+        "before": { "$ref": "#/$defs/AvailabilityStatus" },
+        "after": { "$ref": "#/$defs/AvailabilityStatus" },
+        "checked_at": { "$ref": "#/$defs/UtcTimestamp" },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/SourceEvidence" }
+        },
+        "sources_truncated": { "type": "boolean" }
+      }
+    },
+    "ProblemCode": {
+      "type": "string",
+      "enum": [
+        "invalid_request",
+        "authentication_failed",
+        "not_found",
+        "payload_too_large",
+        "unsupported_media_type",
+        "idempotency_conflict",
+        "run_cancelled",
+        "run_has_pending_jobs",
+        "run_terminal",
+        "job_not_checkable",
+        "no_jobs_available",
+        "inventory_limit_exceeded",
+        "rate_limited",
+        "internal_error",
+        "service_unavailable"
+      ]
+    },
+    "Problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "status", "detail", "code", "request_id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 599
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "instance": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "code": { "$ref": "#/$defs/ProblemCode" },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._-]+$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,319 @@
+{
+  "$schema": "./availability-fixture-set-v1.schema.json",
+  "fixture_set_schema_version": 1,
+  "fixture_type": "observation_classification",
+  "contract_version": "1.0.0",
+  "frozen_clock": "2026-08-27T00:00:00Z",
+  "source_contracts": [
+    {
+      "id": "SPEC-018",
+      "version": "1.0",
+      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+    },
+    {
+      "id": "SPEC-015",
+      "version": "1.2",
+      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+    },
+    {
+      "id": "PYTHON-BASELINE-DETECTOR",
+      "version": "pre-conversion",
+      "project_path": "dev/packages/summarizer/summarizer/services/availability_detector.py"
+    }
+  ],
+  "cases": [
+    {
+      "id": "classification.jobposting-active",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-07", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_classify_html"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Senior Data Scientist",
+        "expected_company": "Acme",
+        "fetch": {
+          "attempts": [{
+            "kind": "response",
+            "status": 200,
+            "resolved_url": "https://jobs.example.com/1234",
+            "body": "<script type=\"application/ld+json\">{\"@type\":\"JobPosting\",\"title\":\"Senior Data Scientist\",\"hiringOrganization\":{\"name\":\"Acme\"},\"validThrough\":\"2026-09-30T00:00:00Z\"}</script>"
+          }]
+        }
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "jobposting_active", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200},
+        "aggregate_status": "open",
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.apply-action-present",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-07", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_text_identity_matches"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<h1>Data Engineer at Acme</h1><button>Apply now</button>"}]}
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "apply_action_present", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200},
+        "aggregate_status": "open",
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.platform-open-marker",
+      "expectation": "new_contract",
+      "requirements": ["JA-FR-02", "JA-FR-07", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "SPEC-018#Testing design: platform marker"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<main data-job-status=\"open\"><h1>Data Engineer</h1><p>Acme</p></main>"}]},
+        "platform_markers": {"open": ["data-job-status=\"open\""]}
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "platform_open_marker", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200},
+        "aggregate_status": "open",
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.http-404-attributed",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-09", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {"attempts": [{"kind": "response", "status": 404, "resolved_url": "https://jobs.example.com/1234", "body": ""}]}
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404},
+        "aggregate_status": "closed",
+        "attribution_verified": true,
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.http-410-attributed",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-09", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {"attempts": [{"kind": "response", "status": 410, "resolved_url": "https://jobs.example.com/1234", "body": ""}]}
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00Z", "http_status": 410},
+        "aggregate_status": "closed",
+        "attribution_verified": true,
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.valid-through-past",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-07", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_valid_through_past"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<script type=\"application/ld+json\">{\"@type\":\"JobPosting\",\"title\":\"Data Engineer\",\"hiringOrganization\":{\"name\":\"Acme\"},\"validThrough\":\"2026-08-26T23:59:59Z\"}</script>"}]}
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "valid_through_past", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200},
+        "aggregate_status": "closed",
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.platform-closed-marker",
+      "expectation": "new_contract",
+      "requirements": ["JA-FR-02", "JA-FR-08", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "SPEC-018#Testing design: platform marker"],
+      "input": {
+        "platform": "fixture",
+        "url": "https://jobs.example.com/1234",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<main data-job-status=\"closed\"><h1>Data Engineer</h1><p>Acme</p></main>"}]},
+        "platform_markers": {"closed": ["data-job-status=\"closed\""]}
+      },
+      "expected": {
+        "observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "platform_closed_marker", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200},
+        "aggregate_status": "closed",
+        "identity_verified": true,
+        "attempt_count": 1
+      }
+    },
+    {
+      "id": "classification.access-denied-401",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 401, "resolved_url": "https://jobs.example.com/1234", "body": ""}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "access_denied", "checked_at": "2026-08-27T00:00:00Z", "http_status": 401}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.rate-limited",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 429, "resolved_url": "https://jobs.example.com/1234", "body": ""}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "rate_limited", "checked_at": "2026-08-27T00:00:00Z", "http_status": 429}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.server-error-retry-exhausted",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-NFR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_fetch_once_with_retry"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 503, "resolved_url": "https://jobs.example.com/1234", "body": ""}, {"kind": "response", "status": 503, "resolved_url": "https://jobs.example.com/1234", "body": ""}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "server_error", "checked_at": "2026-08-27T00:00:00Z", "http_status": 503}, "aggregate_status": "uncertain", "attempt_count": 2}
+    },
+    {
+      "id": "classification.timeout-retry-exhausted",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_fetch_once_with_retry"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "timeout"}, {"kind": "timeout"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "timeout", "checked_at": "2026-08-27T00:00:00Z", "http_status": null}, "aggregate_status": "uncertain", "attempt_count": 2}
+    },
+    {
+      "id": "classification.network-error-retry-exhausted",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_fetch_once_with_retry"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "network_error"}, {"kind": "network_error"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "network_error", "checked_at": "2026-08-27T00:00:00Z", "http_status": null}, "aggregate_status": "uncertain", "attempt_count": 2}
+    },
+    {
+      "id": "classification.bot-challenge",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_CHALLENGE_MARKERS"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<h1>Verify you are human</h1><p>captcha</p>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "bot_challenge", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.redirect-native-identity-mismatch",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-FR-09", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_classify_html"],
+      "input": {"platform": "indeed", "url": "https://de.indeed.com/viewjob?jk=abc123", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://de.indeed.com/viewjob?jk=other456", "body": "<h1>Data Engineer at Acme</h1>"}]}},
+      "expected": {"observation": {"platform": "indeed", "source_identity": "de.indeed.com/__job__/ind:abc123", "outcome": "inconclusive", "evidence_code": "redirect_mismatch", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.structured-identity-mismatch",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-FR-08", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_identity_matches"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<script type=\"application/ld+json\">{\"@type\":\"JobPosting\",\"title\":\"Accountant\",\"hiringOrganization\":{\"name\":\"Other Co\"}}</script>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "identity_mismatch", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.identity-unverified",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-FR-08", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#_classify_html"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<main>Welcome to the careers site</main>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "identity_unverified", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.unsupported-initial-source",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-NFR-06", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {"platform": "fixture", "url": "http://127.0.0.1/jobs/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "unsafe_url", "stage": "initial_validation"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "127.0.0.1/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "unsupported_source", "checked_at": "2026-08-27T00:00:00Z", "http_status": null}, "aggregate_status": "uncertain", "attempt_count": 0}
+    },
+    {
+      "id": "classification.parse-error-http-400",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Evidence", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 400, "resolved_url": "https://jobs.example.com/1234", "body": "bad request"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "parse_error", "checked_at": "2026-08-27T00:00:00Z", "http_status": 400}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.access-denied-403",
+      "expectation": "parity",
+      "requirements": ["JA-FR-05", "JA-AC-05"],
+      "source_refs": ["SPEC-018#Testing design: 401 and 403", "PYTHON-BASELINE-DETECTOR#check"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 403, "resolved_url": "https://jobs.example.com/1234", "body": "forbidden"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "access_denied", "checked_at": "2026-08-27T00:00:00Z", "http_status": 403}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification.decoded-body-over-limit",
+      "expectation": "parity",
+      "requirements": ["JA-FR-05", "JA-NFR-05", "JA-AC-05"],
+      "source_refs": ["SPEC-018#Interface bounds: decoded response body", "PYTHON-BASELINE-DETECTOR#MAX_RESPONSE_BYTES"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "decoded_body_bytes": 2097153, "body_prefix": "<h1>Data Engineer at Acme</h1>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "parse_error", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "attempt_count": 1, "body_consumed_bytes_max": 2097152}
+    },
+    {
+      "id": "classification.transient-503-retry-succeeds",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-NFR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-018#Interface bounds: Retry", "PYTHON-BASELINE-DETECTOR#_fetch_once_with_retry"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 503, "resolved_url": "https://jobs.example.com/1234", "body": ""}, {"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<h1>Data Engineer at Acme</h1><button>Apply now</button>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "apply_action_present", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "open", "attempt_count": 2}
+    },
+    {
+      "id": "classification.unsafe-redirect-target",
+      "expectation": "parity",
+      "requirements": ["JA-FR-05", "JA-NFR-05", "JA-NFR-06", "JA-AC-05"],
+      "source_refs": ["SPEC-018#Testing design: each redirect", "PYTHON-BASELINE-DETECTOR#_fetch_with_redirect_validation"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 302, "resolved_url": "https://jobs.example.com/1234", "headers": {"location": "http://127.0.0.1/private"}, "body": ""}, {"kind": "unsafe_url", "stage": "redirect_validation", "url": "http://127.0.0.1/private"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "unsupported_source", "checked_at": "2026-08-27T00:00:00Z", "http_status": null}, "aggregate_status": "uncertain", "attempt_count": 1}
+    },
+    {
+      "id": "classification-mixed-active-and-expired-jobpostings-open",
+      "expectation": "correction",
+      "requirements": ["JA-FR-03", "JA-FR-07", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-03", "PYTHON-BASELINE-DETECTOR#_classify_html"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<script type=\"application/ld+json\">[{\"@type\":\"JobPosting\",\"title\":\"Data Engineer\",\"hiringOrganization\":{\"name\":\"Acme\"},\"validThrough\":\"2026-08-26T23:59:59Z\"},{\"@type\":\"JobPosting\",\"title\":\"Data Engineer\",\"hiringOrganization\":{\"name\":\"Acme\"},\"validThrough\":\"2026-09-30T00:00:00Z\"}]</script>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "jobposting_active", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "open", "attempt_count": 1},
+      "legacy_observed": {"outcome": "closed", "evidence_code": "valid_through_past", "defect": "One expired matching record overrode another verified-active matching record."}
+    },
+    {
+      "id": "classification-malformed-json-ld",
+      "expectation": "correction",
+      "requirements": ["JA-FR-05", "JA-FR-07", "JA-AC-04"],
+      "source_refs": ["SPEC-018#Testing design: malformed JSON-LD", "PYTHON-BASELINE-DETECTOR#_job_postings"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<script type=\"application/ld+json\">{\"@type\":\"JobPosting\",bad}</script>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "parse_error", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "attempt_count": 1},
+      "legacy_observed": {"outcome": "inconclusive", "evidence_code": "identity_unverified", "defect": "Malformed posting JSON was silently treated as absent structured data."}
+    },
+    {
+      "id": "classification-closed-marker-unverified",
+      "expectation": "correction",
+      "requirements": ["JA-FR-05", "JA-FR-08", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-08", "PYTHON-BASELINE-DETECTOR#_CLOSED_MARKERS"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<main>This job is no longer available.</main>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "identity_unverified", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "uncertain", "identity_verified": false, "attempt_count": 1},
+      "legacy_observed": {"outcome": "closed", "evidence_code": "platform_closed_marker", "defect": "Unattributed closure text could close the requested job."}
+    },
+    {
+      "id": "classification.verified-closed-text-marker",
+      "expectation": "new_contract",
+      "requirements": ["JA-FR-02", "JA-FR-08", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-08", "SPEC-018#Testing design: closed marker without identity"],
+      "input": {"platform": "fixture", "url": "https://jobs.example.com/1234", "expected_title": "Data Engineer", "expected_company": "Acme", "fetch": {"attempts": [{"kind": "response", "status": 200, "resolved_url": "https://jobs.example.com/1234", "body": "<main><h1>Data Engineer</h1><p>Acme</p><p>This job is no longer available.</p></main>"}]}},
+      "expected": {"observation": {"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "platform_closed_marker", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, "aggregate_status": "closed", "identity_verified": true, "attempt_count": 1}
+    }
+  ]
+}

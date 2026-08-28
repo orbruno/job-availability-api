@@ -1,0 +1,184 @@
+{
+  "$schema": "./availability-fixture-set-v1.schema.json",
+  "fixture_set_schema_version": 1,
+  "fixture_type": "availability_state",
+  "contract_version": "1.0.0",
+  "frozen_clock": "2026-08-27T00:00:00Z",
+  "source_contracts": [
+    {
+      "id": "SPEC-018",
+      "version": "1.0",
+      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+    },
+    {
+      "id": "SPEC-015",
+      "version": "1.2",
+      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+    },
+    {
+      "id": "PYTHON-BASELINE-STATE",
+      "version": "pre-conversion",
+      "project_path": "dev/packages/summarizer/summarizer/services/availability_state.py"
+    }
+  ],
+  "cases": [
+    {
+      "id": "state.aggregate-empty-is-unchecked",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#aggregate_source_status"],
+      "input": {"operation": "aggregate", "observations": []},
+      "expected": {"status": "unchecked"}
+    },
+    {
+      "id": "state.aggregate-inconclusive-is-uncertain",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#aggregate_source_status"],
+      "input": {"operation": "aggregate", "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "rate_limited", "checked_at": "2026-08-27T00:00:00Z", "http_status": 429}]},
+      "expected": {"status": "uncertain"}
+    },
+    {
+      "id": "state.aggregate-all-closed-is-closed",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-04", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#aggregate_source_status"],
+      "input": {"operation": "aggregate", "observations": [{"platform": "fixture-a", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404}, {"platform": "fixture-b", "source_identity": "careers.example.com/__job__/path:5678", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00Z", "http_status": 410}]},
+      "expected": {"status": "closed"}
+    },
+    {
+      "id": "state.aggregate-mixed-closed-inconclusive-is-uncertain",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#aggregate_source_status"],
+      "input": {"operation": "aggregate", "observations": [{"platform": "fixture-a", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404}, {"platform": "fixture-b", "source_identity": "careers.example.com/__job__/path:5678", "outcome": "inconclusive", "evidence_code": "rate_limited", "checked_at": "2026-08-27T00:00:00Z", "http_status": 429}]},
+      "expected": {"status": "uncertain"}
+    },
+    {
+      "id": "state.aggregate-open-wins",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-03", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#aggregate_source_status"],
+      "input": {"operation": "aggregate", "observations": [{"platform": "fixture-a", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404}, {"platform": "fixture-b", "source_identity": "careers.example.com/__job__/path:5678", "outcome": "open", "evidence_code": "apply_action_present", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}, {"platform": "fixture-c", "source_identity": "board.example.com/__job__/path:9999", "outcome": "inconclusive", "evidence_code": "timeout", "checked_at": "2026-08-27T00:00:00Z", "http_status": null}]},
+      "expected": {"status": "open"}
+    },
+    {
+      "id": "state.unchecked-to-open",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-03", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-open-1",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "unchecked", "last_checked_at": null, "last_run_id": null, "closure_run_ids": [], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "jobposting_active", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}]
+      },
+      "expected": {"status": "open", "closure_run_ids": [], "last_run_id": "run-open-1", "last_checked_at": "2026-08-27T00:00:00Z", "transition": "unchecked->open", "history_run_ids": ["run-open-1"]}
+    },
+    {
+      "id": "state.first-distinct-closed-run-is-likely-closed",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-04", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-close-1",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "unchecked", "last_checked_at": null, "last_run_id": null, "closure_run_ids": [], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00Z", "http_status": 410}]
+      },
+      "expected": {"status": "likely_closed", "closure_run_ids": ["run-close-1"], "last_run_id": "run-close-1", "transition": "unchecked->likely_closed"}
+    },
+    {
+      "id": "state.same-run-closure-retry-is-idempotent",
+      "expectation": "parity",
+      "requirements": ["JA-FR-04", "JA-FR-17", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Acceptance criteria: same-run retries", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-close-1",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "likely_closed", "last_checked_at": "2026-08-27T00:00:00Z", "last_run_id": "run-close-1", "closure_run_ids": ["run-close-1"], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00Z", "http_status": 410}]
+      },
+      "expected": {"status": "likely_closed", "closure_run_ids": ["run-close-1"], "last_run_id": "run-close-1", "transition": "likely_closed->likely_closed", "closure_streak_advanced": false}
+    },
+    {
+      "id": "state.second-distinct-closed-run-confirms-closure",
+      "expectation": "parity",
+      "requirements": ["JA-FR-04", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-close-2",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "likely_closed", "last_checked_at": "2026-08-26T00:00:00Z", "last_run_id": "run-close-1", "closure_run_ids": ["run-close-1"], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404}]
+      },
+      "expected": {"status": "closed", "closure_run_ids": ["run-close-1", "run-close-2"], "last_run_id": "run-close-2", "transition": "likely_closed->closed"}
+    },
+    {
+      "id": "state.verified-open-reopens-and-clears-closure-streak",
+      "expectation": "parity",
+      "requirements": ["JA-FR-03", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-open-3",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "closed", "last_checked_at": "2026-08-26T00:00:00Z", "last_run_id": "run-close-2", "closure_run_ids": ["run-close-1", "run-close-2"], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "apply_action_present", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}]
+      },
+      "expected": {"status": "open", "closure_run_ids": [], "last_run_id": "run-open-3", "transition": "closed->open", "reopened": true}
+    },
+    {
+      "id": "state.uncertainty-preserves-closure-evidence",
+      "expectation": "parity",
+      "requirements": ["JA-FR-04", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-uncertain-2",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "likely_closed", "last_checked_at": "2026-08-26T00:00:00Z", "last_run_id": "run-close-1", "closure_run_ids": ["run-close-1"], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "inconclusive", "evidence_code": "timeout", "checked_at": "2026-08-27T00:00:00Z", "http_status": null}]
+      },
+      "expected": {"status": "uncertain", "closure_run_ids": ["run-close-1"], "last_run_id": "run-uncertain-2", "transition": "likely_closed->uncertain"}
+    },
+    {
+      "id": "state.later-distinct-closed-run-confirms-after-uncertainty",
+      "expectation": "parity",
+      "requirements": ["JA-FR-04", "JA-FR-05", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Functional requirements", "PYTHON-BASELINE-STATE#apply_observations"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "run-close-3",
+        "previous": {"schema_version": 1, "job_id": "job-1", "status": "uncertain", "last_checked_at": "2026-08-26T00:00:00Z", "last_run_id": "run-uncertain-2", "closure_run_ids": ["run-close-1"], "sources": [], "history": []},
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00Z", "http_status": 410}]
+      },
+      "expected": {"status": "closed", "closure_run_ids": ["run-close-1", "run-close-3"], "last_run_id": "run-close-3", "transition": "uncertain->closed"}
+    },
+    {
+      "id": "state.history-retains-inclusive-ninety-day-window",
+      "expectation": "parity",
+      "requirements": ["JA-FR-06", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Persistence", "PYTHON-BASELINE-STATE#_retained_history"],
+      "input": {
+        "operation": "apply_observations",
+        "run_id": "current",
+        "previous": {
+          "schema_version": 1,
+          "job_id": "job-1",
+          "status": "open",
+          "last_checked_at": "2026-05-30T00:00:00Z",
+          "last_run_id": "recent-89",
+          "closure_run_ids": [],
+          "sources": [],
+          "history": [
+            {"run_id": "old-91", "checked_at": "2026-05-28T00:00:00Z", "status": "open", "source_outcomes": []},
+            {"run_id": "boundary-90", "checked_at": "2026-05-29T00:00:00Z", "status": "open", "source_outcomes": []},
+            {"run_id": "recent-89", "checked_at": "2026-05-30T00:00:00Z", "status": "open", "source_outcomes": []},
+            {"run_id": "invalid-time", "checked_at": "not-a-timestamp", "status": "open", "source_outcomes": []}
+          ]
+        },
+        "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "jobposting_active", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}]
+      },
+      "expected": {"status": "open", "retained_history_run_ids": ["boundary-90", "recent-89", "current"], "removed_history_run_ids": ["old-91", "invalid-time"], "history_count": 3}
+    }
+  ]
+}

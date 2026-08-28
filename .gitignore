@@ -1,0 +1,17 @@
+coverage/
+dist/
+node_modules/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+.secrets/
+data/
+
+# Local project context and planning records are not part of the public API source.
+.c*/
+.g*/
+!.github/
+AGENTS.md
+_Context__Job-Availability-Service.md

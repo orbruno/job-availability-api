@@ -1,0 +1,125 @@
+{
+  "$schema": "./availability-fixture-set-v1.schema.json",
+  "fixture_set_schema_version": 1,
+  "fixture_type": "persisted_compatibility",
+  "contract_version": "1.0.0",
+  "frozen_clock": "2026-08-27T00:00:00Z",
+  "source_contracts": [
+    {
+      "id": "SPEC-018",
+      "version": "1.0",
+      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+    },
+    {
+      "id": "SPEC-015",
+      "version": "1.2",
+      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+    },
+    {
+      "id": "PYTHON-BASELINE-CONTRACTS",
+      "version": "pre-conversion",
+      "project_path": "dev/packages/summarizer/summarizer/models/availability.py"
+    }
+  ],
+  "cases": [
+    {
+      "id": "compatibility-python-availability-state-v1",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-02", "JA-NFR-04", "JA-AC-06"],
+      "source_refs": ["SPEC-015#Persistence", "PYTHON-BASELINE-CONTRACTS#AvailabilityState"],
+      "input": {
+        "schema_name": "AvailabilityStateDocument",
+        "document": {
+          "schema_version": 1,
+          "job_id": "acme__data-engineer--1234",
+          "status": "likely_closed",
+          "last_checked_at": "2026-08-27T00:00:00+00:00",
+          "last_run_id": "run-close-1",
+          "closure_run_ids": ["run-close-1"],
+          "sources": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00+00:00", "http_status": 410}],
+          "history": [{"run_id": "run-close-1", "checked_at": "2026-08-27T00:00:00+00:00", "status": "likely_closed", "source_outcomes": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_410", "checked_at": "2026-08-27T00:00:00+00:00", "http_status": 410}]}]
+        }
+      },
+      "expected": {"valid": true, "schema_version": 1, "round_trip_shape_compatible": true, "preserved_field_names": ["schema_version", "job_id", "status", "last_checked_at", "last_run_id", "closure_run_ids", "sources", "history"]}
+    },
+    {
+      "id": "compatibility-python-availability-run-v1",
+      "expectation": "parity",
+      "requirements": ["JA-FR-11", "JA-NFR-04", "JA-AC-06"],
+      "source_refs": ["SPEC-015#Persistence", "PYTHON-BASELINE-CONTRACTS#AvailabilityRun"],
+      "input": {
+        "schema_name": "AvailabilityRunDocument",
+        "document": {
+          "schema_version": 1,
+          "run_id": "availability-20260827T000000-abc12345",
+          "status": "running",
+          "trigger": "schedule",
+          "created_at": "2026-08-27T00:00:00+00:00",
+          "started_at": "2026-08-27T00:00:01+00:00",
+          "completed_at": null,
+          "job_ids": ["job-1", "job-2"],
+          "pending_job_ids": ["job-2"],
+          "processed_job_ids": ["job-1"],
+          "errors": [],
+          "summary": {"checked": 1, "open": 1, "likely_closed": 0, "closed": 0, "uncertain": 0, "unchecked": 0, "newly_closed": 0, "reopened": 0, "failed": 0}
+        }
+      },
+      "expected": {"valid": true, "schema_version": 1, "round_trip_shape_compatible": true, "preserved_field_names": ["schema_version", "run_id", "status", "trigger", "created_at", "started_at", "completed_at", "job_ids", "pending_job_ids", "processed_job_ids", "errors", "summary"]}
+    },
+    {
+      "id": "compatibility-python-per-job-evidence-has-no-schema-version",
+      "expectation": "parity",
+      "requirements": ["JA-FR-02", "JA-NFR-04", "JA-AC-06"],
+      "source_refs": ["SPEC-015#Persistence", "dev/packages/summarizer/summarizer/services/availability_service.py#check_job"],
+      "input": {
+        "schema_name": "PerJobEvidenceDocument",
+        "document": {
+          "job_id": "job-1",
+          "before": "likely_closed",
+          "after": "closed",
+          "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "closed", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00+00:00", "http_status": 404}]
+        }
+      },
+      "expected": {"valid": true, "schema_version_present": false, "round_trip_shape_compatible": true, "preserved_field_names": ["job_id", "before", "after", "observations"]}
+    },
+    {
+      "id": "compatibility-utc-z-and-plus-zero-are-equivalent",
+      "expectation": "parity",
+      "requirements": ["JA-FR-06", "JA-AC-06"],
+      "source_refs": ["SPEC-018#Testing design: compatible file parsing", "PYTHON-BASELINE-CONTRACTS#utc_now"],
+      "input": {
+        "schema_name": "AvailabilityStateDocument",
+        "document": {"schema_version": 1, "job_id": "job-z", "status": "open", "last_checked_at": "2026-08-27T00:00:00Z", "last_run_id": "run-z", "closure_run_ids": [], "sources": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "jobposting_active", "checked_at": "2026-08-27T00:00:00Z", "http_status": 200}], "history": []},
+        "comparison_document": {"schema_version": 1, "job_id": "job-z", "status": "open", "last_checked_at": "2026-08-27T00:00:00+00:00", "last_run_id": "run-z", "closure_run_ids": [], "sources": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "jobposting_active", "checked_at": "2026-08-27T00:00:00+00:00", "http_status": 200}], "history": []}
+      },
+      "expected": {"valid": true, "comparison_valid": true, "same_instant": true, "normalized_instant": "2026-08-27T00:00:00.000Z", "original_text_may_be_preserved": true}
+    },
+    {
+      "id": "compatibility-rejects-unsupported-version-and-unknown-fields",
+      "expectation": "correction",
+      "requirements": ["JA-NFR-01", "JA-NFR-04", "JA-AC-06"],
+      "source_refs": ["SPEC-018#API contract: unsupported versions and unknown fields", "PYTHON-BASELINE-CONTRACTS#AvailabilityState"],
+      "input": {
+        "schema_name": "AvailabilityStateDocument",
+        "document": {"schema_version": 2, "job_id": "job-1", "status": "unchecked", "last_checked_at": null, "last_run_id": null, "closure_run_ids": [], "sources": [], "history": []},
+        "additional_negative_documents": [
+          {"label": "unknown-field", "document": {"schema_version": 1, "job_id": "job-1", "status": "unchecked", "last_checked_at": null, "last_run_id": null, "closure_run_ids": [], "sources": [], "history": [], "unexpected": "value"}}
+        ]
+      },
+      "expected": {"valid": false, "reason": "unsupported_schema_version", "additional_results": [{"label": "unknown-field", "valid": false, "reason": "unknown_field"}]},
+      "legacy_observed": {"results": [{"label": "unsupported-schema-version", "valid": true}, {"label": "unknown-field", "valid": true}], "defect": "The baseline models did not constrain schema_version to 1 and did not forbid extra fields on persisted state and run documents."}
+    },
+    {
+      "id": "compatibility-rejects-outcome-evidence-mismatch",
+      "expectation": "correction",
+      "requirements": ["JA-FR-02", "JA-NFR-01", "JA-AC-04", "JA-AC-06"],
+      "source_refs": ["SPEC-018#Testing design: strict outcome evidence consistency", "PYTHON-BASELINE-CONTRACTS#SourceObservation.validate_evidence"],
+      "input": {
+        "schema_name": "PerJobEvidenceDocument",
+        "document": {"job_id": "job-1", "before": "unchecked", "after": "open", "observations": [{"platform": "fixture", "source_identity": "jobs.example.com/__job__/path:1234", "outcome": "open", "evidence_code": "http_404", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404}]}
+      },
+      "expected": {"valid": false, "reason": "outcome_evidence_mismatch", "required_outcome_for_evidence": "closed"},
+      "legacy_observed": {"valid": true, "defect": "The baseline validator accepted any known evidence code without checking that its outcome matched the evidence set."}
+    }
+  ]
+}

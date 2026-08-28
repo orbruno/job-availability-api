@@ -1,0 +1,172 @@
+{
+  "$schema": "./availability-fixture-set-v1.schema.json",
+  "fixture_set_schema_version": 1,
+  "fixture_type": "boundary_security",
+  "contract_version": "1.0.0",
+  "frozen_clock": "2026-08-27T00:00:00Z",
+  "source_contracts": [
+    {
+      "id": "SPEC-018",
+      "version": "1.0",
+      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+    },
+    {
+      "id": "SPEC-015",
+      "version": "1.2",
+      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+    },
+    {
+      "id": "PYTHON-BASELINE-SERVICE",
+      "version": "pre-conversion",
+      "project_path": "dev/packages/summarizer/summarizer/services/availability_service.py"
+    }
+  ],
+  "cases": [
+    {
+      "id": "redirect-unrelated-404-inconclusive",
+      "expectation": "correction",
+      "requirements": ["JA-FR-05", "JA-FR-09", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-09", "PYTHON-BASELINE-SERVICE#AvailabilityDetector.check"],
+      "input": {
+        "platform": "indeed",
+        "url": "https://de.indeed.com/viewjob?jk=abc123",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {
+          "attempts": [
+            {"kind": "response", "status": 302, "resolved_url": "https://de.indeed.com/viewjob?jk=abc123", "headers": {"location": "https://de.indeed.com/viewjob?jk=other456"}, "body": ""},
+            {"kind": "response", "status": 404, "resolved_url": "https://de.indeed.com/viewjob?jk=other456", "body": ""}
+          ]
+        }
+      },
+      "expected": {"observation": {"platform": "indeed", "source_identity": "de.indeed.com/__job__/ind:abc123", "outcome": "inconclusive", "evidence_code": "redirect_mismatch", "checked_at": "2026-08-27T00:00:00Z", "http_status": 404}, "aggregate_status": "uncertain", "attribution_verified": false, "attempt_count": 2},
+      "legacy_observed": {"outcome": "closed", "evidence_code": "http_404", "http_status": 404, "defect": "The terminal status was classified before confirming that the redirect still represented the requested posting."}
+    },
+    {
+      "id": "redirect-unrelated-410-inconclusive",
+      "expectation": "correction",
+      "requirements": ["JA-FR-05", "JA-FR-09", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-09", "PYTHON-BASELINE-SERVICE#AvailabilityDetector.check"],
+      "input": {
+        "platform": "indeed",
+        "url": "https://de.indeed.com/viewjob?jk=abc123",
+        "expected_title": "Data Engineer",
+        "expected_company": "Acme",
+        "fetch": {
+          "attempts": [
+            {"kind": "response", "status": 302, "resolved_url": "https://de.indeed.com/viewjob?jk=abc123", "headers": {"location": "https://de.indeed.com/viewjob?jk=other456"}, "body": ""},
+            {"kind": "response", "status": 410, "resolved_url": "https://de.indeed.com/viewjob?jk=other456", "body": ""}
+          ]
+        }
+      },
+      "expected": {"observation": {"platform": "indeed", "source_identity": "de.indeed.com/__job__/ind:abc123", "outcome": "inconclusive", "evidence_code": "redirect_mismatch", "checked_at": "2026-08-27T00:00:00Z", "http_status": 410}, "aggregate_status": "uncertain", "attribution_verified": false, "attempt_count": 2},
+      "legacy_observed": {"outcome": "closed", "evidence_code": "http_410", "http_status": 410, "defect": "The terminal status was classified before confirming that the redirect still represented the requested posting."}
+    },
+    {
+      "id": "job-id-boundary-matrix",
+      "expectation": "correction",
+      "requirements": ["JA-FR-12", "JA-NFR-04", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-12", "PYTHON-BASELINE-SERVICE#AvailabilityStore.job_path"],
+      "input": {
+        "operation": "resolve_job_id",
+        "vectors": [
+          {"label": "exact-canonical", "requested": "Acme__Data-Engineer--123", "canonical_inventory": ["Acme__Data-Engineer--123"]},
+          {"label": "percent-decode-once-and-nfc", "requested": "caf%C3%A9__Data-Engineer--123", "canonical_inventory": ["café__Data-Engineer--123"]},
+          {"label": "empty", "requested": "", "canonical_inventory": ["job-1"]},
+          {"label": "dot-segment", "requested": ".", "canonical_inventory": ["."]},
+          {"label": "double-dot-segment", "requested": "%2e%2e", "canonical_inventory": [".."]},
+          {"label": "literal-forward-separator", "requested": "team/job", "canonical_inventory": ["team/job"]},
+          {"label": "encoded-forward-separator", "requested": "team%2Fjob", "canonical_inventory": ["team/job"]},
+          {"label": "residual-double-encoded-forward-separator", "requested": "team%252Fjob", "canonical_inventory": ["team%2Fjob"]},
+          {"label": "literal-back-separator", "requested": "team\\job", "canonical_inventory": ["team\\job"]},
+          {"label": "encoded-back-separator", "requested": "team%5Cjob", "canonical_inventory": ["team\\job"]},
+          {"label": "nul", "requested": "job%00suffix", "canonical_inventory": ["job\u0000suffix"]},
+          {"label": "control", "requested": "job%1Fsuffix", "canonical_inventory": ["job\u001fsuffix"]},
+          {"label": "invalid-percent-encoding", "requested": "job%ZZ", "canonical_inventory": ["job%ZZ"]},
+          {"label": "over-255-utf8-bytes", "requested_expression": {"repeat": "é", "count": 128}, "canonical_inventory_expression": [{"repeat": "é", "count": 128}]},
+          {"label": "ambiguous-nfc-collision", "requested": "café", "canonical_inventory": ["café", "café"]},
+          {"label": "case-folding-forbidden", "requested": "JOB-A", "canonical_inventory": ["Job-A", "job-a"]},
+          {"label": "nfkc-forbidden", "requested": "ＡＢＣ", "canonical_inventory": ["ABC"]},
+          {"label": "non-member", "requested": "missing-job", "canonical_inventory": ["job-1"]}
+        ]
+      },
+      "expected": {
+        "results": [
+          {"label": "exact-canonical", "accepted": true, "canonical_job_id": "Acme__Data-Engineer--123"},
+          {"label": "percent-decode-once-and-nfc", "accepted": true, "canonical_job_id": "café__Data-Engineer--123"},
+          {"label": "empty", "accepted": false, "code": "invalid_request"},
+          {"label": "dot-segment", "accepted": false, "code": "invalid_request"},
+          {"label": "double-dot-segment", "accepted": false, "code": "invalid_request"},
+          {"label": "literal-forward-separator", "accepted": false, "code": "invalid_request"},
+          {"label": "encoded-forward-separator", "accepted": false, "code": "invalid_request"},
+          {"label": "residual-double-encoded-forward-separator", "accepted": false, "code": "invalid_request"},
+          {"label": "literal-back-separator", "accepted": false, "code": "invalid_request"},
+          {"label": "encoded-back-separator", "accepted": false, "code": "invalid_request"},
+          {"label": "nul", "accepted": false, "code": "invalid_request"},
+          {"label": "control", "accepted": false, "code": "invalid_request"},
+          {"label": "invalid-percent-encoding", "accepted": false, "code": "invalid_request"},
+          {"label": "over-255-utf8-bytes", "accepted": false, "code": "invalid_request"},
+          {"label": "ambiguous-nfc-collision", "accepted": false, "code": "invalid_request", "reason": "ambiguous_normalization_match"},
+          {"label": "case-folding-forbidden", "accepted": false, "code": "not_found"},
+          {"label": "nfkc-forbidden", "accepted": false, "code": "not_found"},
+          {"label": "non-member", "accepted": false, "code": "not_found"}
+        ],
+        "percent_decode_count": 1,
+        "normalization": "NFC",
+        "maximum_utf8_bytes": 255
+      },
+      "legacy_observed": {"enforced_as_one_boundary": false, "defect": "Identifier decoding, normalization, inventory resolution, and confined path rules were not expressed as one exhaustive trust-boundary contract."}
+    },
+    {
+      "id": "security-dns-rebinding-blocked",
+      "expectation": "correction",
+      "requirements": ["JA-NFR-05", "JA-NFR-06", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-NFR-05", "SPEC-015#Acceptance criteria: public URL guard"],
+      "input": {
+        "url": "https://jobs.public.example/openings/1234",
+        "dns_sequence": [
+          {"stage": "validation", "addresses": ["93.184.216.34"]},
+          {"stage": "connection", "addresses": ["127.0.0.1"]}
+        ],
+        "requested_tls_server_name": "jobs.public.example"
+      },
+      "expected": {"outcome": "inconclusive", "evidence_code": "unsupported_source", "connection_attempted": false, "blocked_stage": "connection_address_policy", "tls_server_name": "jobs.public.example"},
+      "legacy_observed": {"connection_address_policy_enforced": false, "possible_connection_target": "127.0.0.1", "defect": "The hostname could resolve differently after URL validation without a second address-policy check at connection time."}
+    },
+    {
+      "id": "security-idempotency-replay-and-conflict",
+      "expectation": "new_contract",
+      "requirements": ["JA-FR-16", "JA-FR-17", "JA-NFR-04", "JA-AC-07"],
+      "source_refs": ["SPEC-018#Idempotency", "SPEC-018#Initial HTTP mapping"],
+      "input": {
+        "operator": "synthetic-operator",
+        "key": "fixture-key-001",
+        "requests": [
+          {"label": "first", "method": "POST", "route": "/v1/availability/runs", "body": {"schema_version": 1, "job_ids": ["job-1"], "trigger": "manual"}},
+          {"label": "canonical-order-replay", "method": "POST", "route": "/v1/availability/runs", "body": {"trigger": "manual", "schema_version": 1, "job_ids": ["job-1"]}},
+          {"label": "different-effective-request", "method": "POST", "route": "/v1/availability/runs", "body": {"schema_version": 1, "job_ids": ["job-1"], "trigger": "recovery"}}
+        ],
+        "stable_deduplication": [
+          {"label": "first-occurrence-order", "raw_job_ids": ["job-b", "job-a", "job-b", "job-c", "job-a"]},
+          {"label": "raw-100-with-duplicates", "raw_job_ids_expression": {"job_id_range": [1, 50], "repeat_each": 2}, "raw_count": 100},
+          {"label": "raw-101-rejected-before-deduplication", "raw_job_ids_expression": {"repeat": "job-1", "count": 101}, "raw_count": 101}
+        ]
+      },
+      "expected": {
+        "results": [
+          {"label": "first", "http_status": 201, "idempotency_replayed": false, "domain_mutation_count": 1},
+          {"label": "canonical-order-replay", "http_status": 201, "idempotency_replayed": true, "domain_mutation_count": 1},
+          {"label": "different-effective-request", "http_status": 409, "problem_code": "idempotency_conflict", "domain_mutation_count": 1}
+        ],
+        "stable_deduplication_results": [
+          {"label": "first-occurrence-order", "accepted": true, "effective_job_ids": ["job-b", "job-a", "job-c"]},
+          {"label": "raw-100-with-duplicates", "accepted": true, "raw_count": 100, "effective_unique_count": 50},
+          {"label": "raw-101-rejected-before-deduplication", "accepted": false, "raw_count": 101, "problem_code": "invalid_request", "deduplication_performed": false}
+        ],
+        "fingerprint_body_algorithm": "RFC8785",
+        "persisted_key_material": "sha256_digest_only",
+        "retention_hours": 24
+      }
+    }
+  ]
+}

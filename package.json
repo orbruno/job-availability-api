@@ -1,0 +1,50 @@
+{
+  "name": "job-availability-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private self-hosted API for deterministic job-availability monitoring",
+  "license": "MIT",
+  "author": "Orlando Bruno",
+  "homepage": "https://github.com/orbruno/job-availability-api#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orbruno/job-availability-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/orbruno/job-availability-api/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "packageManager": "npm@11.6.2",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "benchmark:isolated": "node scripts/benchmark-isolated.mjs",
+    "check": "npm run lint && npm run typecheck && npm run validate:contracts && npm run test && npm run build",
+    "check:runtime": "npm run check && npm run smoke:runtime",
+    "lint": "eslint .",
+    "lock:recover": "node scripts/recover-stale-lock.mjs",
+    "source:identity": "node scripts/source-identity.mjs",
+    "smoke:runtime": "node scripts/runtime-smoke.mjs",
+    "start": "node dist/index.js",
+    "token:generate": "node scripts/generate-token.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "validate:contracts": "node scripts/validate-contracts.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "12.1.0",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.3",
+    "eslint": "10.9.1",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.68.0",
+    "vitest": "4.1.9",
+    "yaml": "2.9.0"
+  }
+}

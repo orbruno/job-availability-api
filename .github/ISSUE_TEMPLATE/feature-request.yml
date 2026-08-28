@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose an improvement grounded in a private self-hosting need
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I searched existing issues and the public roadmap.
+          required: true
+        - label: The proposal contains no credentials, posting content, workflow payloads, filesystem contents, or personal data.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Operational or integration problem
+      description: Describe the user need and why the current API does not address it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe inputs, outputs, failure behavior, security boundaries, and deployment impact.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain current workarounds or existing API operations you considered.
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Architecture boundaries
+      description: Explain how the proposal preserves private deployment, one operator, and one availability writer.
+    validations:
+      required: true

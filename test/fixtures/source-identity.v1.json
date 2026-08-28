@@ -1,0 +1,247 @@
+{
+  "$schema": "./availability-fixture-set-v1.schema.json",
+  "fixture_set_schema_version": 1,
+  "fixture_type": "source_identity",
+  "contract_version": "1.0.0",
+  "frozen_clock": "2026-08-27T00:00:00Z",
+  "source_contracts": [
+    {
+      "id": "SPEC-018",
+      "version": "1.0",
+      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+    },
+    {
+      "id": "SPEC-015",
+      "version": "1.2",
+      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+    },
+    {
+      "id": "PYTHON-BASELINE-SOURCE-IDENTITY",
+      "version": "pre-conversion",
+      "project_path": "dev/packages/summarizer/summarizer/services/source_identity.py"
+    }
+  ],
+  "cases": [
+    {
+      "id": "identity.indeed-native-route-variants",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: source variants",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#source_identity"
+      ],
+      "input": {
+        "urls": [
+          "https://de.indeed.com/viewjob?jk=ABC123&utm_source=mail",
+          "https://de.indeed.com/rc/clk?from=vj&jk=abc123"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "de.indeed.com/__job__/ind:abc123",
+          "de.indeed.com/__job__/ind:abc123"
+        ],
+        "native_job_ids": ["ind:abc123", "ind:abc123"],
+        "equivalent": true
+      }
+    },
+    {
+      "id": "identity.stepstone-native-id",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: native IDs",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#_native_job_id"
+      ],
+      "input": {
+        "urls": [
+          "https://www.stepstone.de/stellenangebote--Data-Engineer-Berlin-Acme-12345678.html?cid=mail"
+        ]
+      },
+      "expected": {
+        "canonical_urls": ["stepstone.de/__job__/ss:12345678"],
+        "native_job_ids": ["ss:12345678"],
+        "equivalent": true
+      }
+    },
+    {
+      "id": "identity.numeric-path-native-id",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: native IDs",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#_native_job_id"
+      ],
+      "input": {
+        "urls": ["https://jobs.example.com/jobs/987654/details"]
+      },
+      "expected": {
+        "canonical_urls": ["jobs.example.com/__job__/path:987654"],
+        "native_job_ids": ["path:987654"],
+        "equivalent": true
+      }
+    },
+    {
+      "id": "identity.tracking-query-collapse",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: query tracking",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#_is_tracking"
+      ],
+      "input": {
+        "urls": [
+          "https://jobs.example.com/openings/data-engineer?position_id=42&utm_source=mail&ref=digest",
+          "https://www.jobs.example.com/openings/data-engineer?ref=board&position_id=42"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "jobs.example.com/openings/data-engineer?position_id=42",
+          "jobs.example.com/openings/data-engineer?position_id=42"
+        ],
+        "native_job_ids": [null, null],
+        "equivalent": true
+      }
+    },
+    {
+      "id": "identity.unrecognized-query-remains-distinct",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: query tracking",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#source_identity"
+      ],
+      "input": {
+        "urls": [
+          "https://jobs.example.com/openings/data-engineer?position_id=42",
+          "https://jobs.example.com/openings/data-engineer?position_id=43"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "jobs.example.com/openings/data-engineer?position_id=42",
+          "jobs.example.com/openings/data-engineer?position_id=43"
+        ],
+        "native_job_ids": [null, null],
+        "equivalent": false
+      }
+    },
+    {
+      "id": "identity.encoded-query-remains-distinct",
+      "expectation": "parity",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: unrelated identities",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#source_identity"
+      ],
+      "input": {
+        "urls": [
+          "https://jobs.example.com/opening?a=x%26b%3Dy",
+          "https://jobs.example.com/opening?a=x&b=y"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "jobs.example.com/opening?a=x%26b%3Dy",
+          "jobs.example.com/opening?a=x&b=y"
+        ],
+        "native_job_ids": [null, null],
+        "equivalent": false
+      }
+    },
+    {
+      "id": "identity-non-default-port-significant",
+      "expectation": "correction",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: ports",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#source_identity"
+      ],
+      "input": {
+        "urls": [
+          "https://jobs.example.com:8443/openings/data-engineer",
+          "https://jobs.example.com/openings/data-engineer"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "jobs.example.com:8443/openings/data-engineer",
+          "jobs.example.com/openings/data-engineer"
+        ],
+        "native_job_ids": [null, null],
+        "equivalent": false
+      },
+      "legacy_observed": {
+        "canonical_urls": [
+          "jobs.example.com/openings/data-engineer",
+          "jobs.example.com/openings/data-engineer"
+        ],
+        "equivalent": true,
+        "defect": "The non-default port was discarded and two endpoints were merged."
+      }
+    },
+    {
+      "id": "identity-path-case-significant",
+      "expectation": "correction",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: case-sensitive paths",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#source_identity"
+      ],
+      "input": {
+        "urls": [
+          "https://jobs.example.com/Jobs/Data-Engineer",
+          "https://jobs.example.com/jobs/data-engineer"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "jobs.example.com/Jobs/Data-Engineer",
+          "jobs.example.com/jobs/data-engineer"
+        ],
+        "native_job_ids": [null, null],
+        "equivalent": false
+      },
+      "legacy_observed": {
+        "canonical_urls": [
+          "jobs.example.com/jobs/data-engineer",
+          "jobs.example.com/jobs/data-engineer"
+        ],
+        "equivalent": true,
+        "defect": "The generic route path was lowercased and distinct paths were merged."
+      }
+    },
+    {
+      "id": "identity-unicode-idn-punycode-converge",
+      "expectation": "correction",
+      "requirements": ["JA-FR-07", "JA-AC-04"],
+      "source_refs": [
+        "SPEC-018#Testing design: Unicode or IDN hosts",
+        "PYTHON-BASELINE-SOURCE-IDENTITY#source_identity"
+      ],
+      "input": {
+        "urls": [
+          "https://bücher.example/Stelle?position=1",
+          "https://xn--bcher-kva.example/Stelle?position=1"
+        ]
+      },
+      "expected": {
+        "canonical_urls": [
+          "xn--bcher-kva.example/Stelle?position=1",
+          "xn--bcher-kva.example/Stelle?position=1"
+        ],
+        "native_job_ids": [null, null],
+        "equivalent": true
+      },
+      "legacy_observed": {
+        "canonical_urls": [
+          "bücher.example/stelle?position=1",
+          "xn--bcher-kva.example/stelle?position=1"
+        ],
+        "equivalent": false,
+        "defect": "The Unicode hostname was not converted to its ASCII IDN form, so equivalent hosts remained distinct."
+      }
+    }
+  ]
+}

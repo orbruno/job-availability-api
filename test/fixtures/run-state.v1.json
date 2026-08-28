@@ -1,0 +1,119 @@
+{
+  "$schema": "./availability-fixture-set-v1.schema.json",
+  "fixture_set_schema_version": 1,
+  "fixture_type": "run_state",
+  "contract_version": "1.0.0",
+  "frozen_clock": "2026-08-27T00:00:00Z",
+  "source_contracts": [
+    {
+      "id": "SPEC-018",
+      "version": "1.0",
+      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+    },
+    {
+      "id": "SPEC-015",
+      "version": "1.2",
+      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+    },
+    {
+      "id": "PYTHON-BASELINE-RUN-STATE",
+      "version": "pre-conversion",
+      "project_path": "dev/packages/summarizer/summarizer/services/availability_state.py"
+    }
+  ],
+  "cases": [
+    {
+      "id": "run-success-lifecycle",
+      "expectation": "parity",
+      "requirements": ["JA-FR-01", "JA-FR-11", "JA-FR-15", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Internal API", "PYTHON-BASELINE-RUN-STATE#AvailabilityStore"],
+      "input": {
+        "initial": {"schema_version": 1, "run_id": "run-success", "status": "pending", "trigger": "manual", "created_at": "2026-08-27T00:00:00Z", "started_at": null, "completed_at": null, "job_ids": ["job-open", "job-closed"], "pending_job_ids": ["job-open", "job-closed"], "processed_job_ids": [], "errors": [], "summary": {"checked": 0, "open": 0, "likely_closed": 0, "closed": 0, "uncertain": 0, "unchecked": 0, "newly_closed": 0, "reopened": 0, "failed": 0}},
+        "events": [
+          {"type": "start", "at": "2026-08-27T00:00:01Z"},
+          {"type": "job_succeeded", "job_id": "job-open", "before": "unchecked", "after": "open"},
+          {"type": "job_succeeded", "job_id": "job-closed", "before": "likely_closed", "after": "closed"},
+          {"type": "finalize", "at": "2026-08-27T00:00:05Z"}
+        ]
+      },
+      "expected": {"status_trace": ["pending", "running", "completed"], "final_status": "completed", "pending_job_ids": [], "processed_job_ids": ["job-open", "job-closed"], "error_count": 0, "summary": {"checked": 2, "open": 1, "closed": 1, "newly_closed": 1, "failed": 0}}
+    },
+    {
+      "id": "run-per-job-failure-continues",
+      "expectation": "correction",
+      "requirements": ["JA-FR-11", "JA-NFR-04", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-11", "PYTHON-BASELINE-RUN-STATE#record_job"],
+      "input": {
+        "initial": {"schema_version": 1, "run_id": "run-partial-failure", "status": "pending", "trigger": "schedule", "created_at": "2026-08-27T00:00:00Z", "started_at": null, "completed_at": null, "job_ids": ["job-fails", "job-open"], "pending_job_ids": ["job-fails", "job-open"], "processed_job_ids": [], "errors": [], "summary": {"checked": 0, "open": 0, "likely_closed": 0, "closed": 0, "uncertain": 0, "unchecked": 0, "newly_closed": 0, "reopened": 0, "failed": 0}},
+        "events": [
+          {"type": "start", "at": "2026-08-27T00:00:01Z"},
+          {"type": "job_failed", "job_id": "job-fails", "code": "storage_failure", "message": "Job check failed"},
+          {"type": "job_succeeded", "job_id": "job-open", "before": "unchecked", "after": "open"},
+          {"type": "finalize", "at": "2026-08-27T00:00:05Z"}
+        ]
+      },
+      "expected": {"status_trace": ["pending", "running", "failed"], "final_status": "failed", "pending_job_ids": [], "processed_job_ids": ["job-fails", "job-open"], "errors": [{"job_id": "job-fails", "code": "storage_failure", "message": "Job check failed"}], "summary": {"checked": 1, "open": 1, "failed": 1}, "unrelated_job_continued": true},
+      "legacy_observed": {"final_status": "running", "pending_job_ids": ["job-fails", "job-open"], "processed_job_ids": [], "errors": [], "defect": "The per-job exception escaped without durable failure accounting and could strand the run before unrelated work continued."}
+    },
+    {
+      "id": "run-cancel-wins-in-flight",
+      "expectation": "correction",
+      "requirements": ["JA-FR-10", "JA-FR-18", "JA-NFR-04", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-10", "PYTHON-BASELINE-RUN-STATE#cancel"],
+      "input": {
+        "initial": {"schema_version": 1, "run_id": "run-cancel-race", "status": "running", "trigger": "manual", "created_at": "2026-08-27T00:00:00Z", "started_at": "2026-08-27T00:00:01Z", "completed_at": null, "job_ids": ["job-in-flight"], "pending_job_ids": ["job-in-flight"], "processed_job_ids": [], "errors": [], "summary": {"checked": 0, "failed": 0}},
+        "events": [
+          {"type": "job_check_started", "job_id": "job-in-flight", "at": "2026-08-27T00:00:02Z"},
+          {"type": "cancel", "at": "2026-08-27T00:00:03Z"},
+          {"type": "job_check_completed_stale", "job_id": "job-in-flight", "at": "2026-08-27T00:00:04Z", "after": "open"},
+          {"type": "finalize", "at": "2026-08-27T00:00:05Z"}
+        ]
+      },
+      "expected": {"status_trace": ["running", "cancelled"], "final_status": "cancelled", "completed_at": "2026-08-27T00:00:03Z", "pending_job_ids": ["job-in-flight"], "processed_job_ids": [], "stale_completion_committed": false, "resurrection_prevented": true},
+      "legacy_observed": {"possible_final_status": "running", "defect": "A stale in-flight update could persist a pre-cancellation run snapshot and resurrect cancelled work."}
+    },
+    {
+      "id": "run-restart-recovers-stranded-running-run",
+      "expectation": "new_contract",
+      "requirements": ["JA-NFR-04", "JA-AC-05"],
+      "source_refs": ["SPEC-018#Storage and concurrency", "SPEC-018#Testing design: restart"],
+      "input": {
+        "persisted_before_restart": {"schema_version": 1, "run_id": "run-restart", "status": "running", "trigger": "schedule", "created_at": "2026-08-27T00:00:00Z", "started_at": "2026-08-27T00:00:01Z", "completed_at": null, "job_ids": ["job-done", "job-pending"], "pending_job_ids": ["job-pending"], "processed_job_ids": ["job-done"], "errors": [], "summary": {"checked": 1, "open": 1, "failed": 0}},
+        "events_after_restart": [{"type": "load"}, {"type": "job_succeeded", "job_id": "job-pending", "before": "unchecked", "after": "open"}, {"type": "finalize", "at": "2026-08-27T00:01:00Z"}]
+      },
+      "expected": {"loaded_status": "running", "recovery_action": "continue_pending", "replayed_processed_jobs": [], "processed_after_recovery": ["job-done", "job-pending"], "final_status": "completed"}
+    },
+    {
+      "id": "run-cancelled-recovery-creates-new-run",
+      "expectation": "new_contract",
+      "requirements": ["JA-FR-10", "JA-FR-18", "JA-AC-05"],
+      "source_refs": ["SPEC-018#JA-FR-18", "SPEC-018#Non-goals"],
+      "input": {
+        "cancelled_run": {"schema_version": 1, "run_id": "run-cancelled", "status": "cancelled", "trigger": "manual", "created_at": "2026-08-27T00:00:00Z", "started_at": "2026-08-27T00:00:01Z", "completed_at": "2026-08-27T00:00:03Z", "job_ids": ["job-1"], "pending_job_ids": ["job-1"], "processed_job_ids": [], "errors": [], "summary": {"checked": 0, "failed": 0}},
+        "recovery_request": {"job_ids": ["job-1"], "trigger": "manual"},
+        "issued_run_id": "run-recovery-new"
+      },
+      "expected": {"old_run_status": "cancelled", "old_run_unchanged": true, "new_run_id": "run-recovery-new", "new_run_status": "pending", "new_run_pending_job_ids": ["job-1"], "identities_distinct": true}
+    },
+    {
+      "id": "run-finalized-retention-window",
+      "expectation": "parity",
+      "requirements": ["JA-FR-06", "JA-AC-04"],
+      "source_refs": ["SPEC-015#Persistence", "PYTHON-BASELINE-RUN-STATE#prune"],
+      "input": {
+        "operation": "prune",
+        "retention_days": 90,
+        "now": "2026-08-27T00:00:00Z",
+        "runs": [
+          {"run_id": "completed-old-91", "status": "completed", "completed_at": "2026-05-28T00:00:00Z"},
+          {"run_id": "failed-old-91", "status": "failed", "completed_at": "2026-05-28T00:00:00Z"},
+          {"run_id": "completed-boundary-90", "status": "completed", "completed_at": "2026-05-29T00:00:00Z"},
+          {"run_id": "failed-recent-1", "status": "failed", "completed_at": "2026-08-26T00:00:00Z"},
+          {"run_id": "cancelled-recent-1", "status": "cancelled", "completed_at": "2026-08-26T00:00:00Z"},
+          {"run_id": "running-no-completion", "status": "running", "completed_at": null}
+        ]
+      },
+      "expected": {"removed_run_ids": ["completed-old-91", "failed-old-91"], "retained_run_ids": ["completed-boundary-90", "failed-recent-1", "cancelled-recent-1", "running-no-completion"], "removed_count": 2}
+    }
+  ]
+}
