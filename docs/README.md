@@ -5,5 +5,6 @@
 - [Operations](operations.md): install, provision, start, verify, rotate, revoke, diagnose, and uninstall.
 - [Private n8n connectivity](n8n-connectivity.md): host and shared-Docker-network topologies.
 - [Data layout](data-layout.md): stateless observation and durable inventory requirements.
+- [Contract origins](contract-origins.md): public authority and historical fixture provenance.
 - [Backup and restore](backup-and-restore.md): consistent backup and isolated restoration drill.
 - [Rollback](rollback.md): restore a prior compatible release without dual writing.

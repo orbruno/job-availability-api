@@ -5,7 +5,7 @@
   "fixture_set_schema_version": 1,
   "frozen_clock": "2026-08-27T00:00:00Z",
   "hash_algorithm": "sha256",
-  "corpus_sha256": "a2a1d23d653976525ea62bd761b2828ff85ec65a3f96cc8150a4c62343a5e868",
+  "corpus_sha256": "46fc491401134ad7c47a65e5f1a41306499f684ebade0d700d117beaee191a6b",
   "files": [
     {
       "path": "availability-fixture-set-v1.schema.json",
@@ -15,37 +15,37 @@
       "path": "source-identity.v1.json",
       "fixture_type": "source_identity",
       "case_count": 9,
-      "sha256": "5be070c341dba5b03f63feedbaa3e7ff0e4797bb27bb45f07b32b4bcd429bfd6"
+      "sha256": "b079945be476120c3d9322ef5bf246af541bb8c8539e12671d5853bd73558376"
     },
     {
       "path": "observation-classification.v1.json",
       "fixture_type": "observation_classification",
       "case_count": 26,
-      "sha256": "60170ec9c3259d7acd0b2496972e8138c6141e9d759b0479f399e766da0dcfb8"
+      "sha256": "839bd7e796626a1632d4504df13c878fd123a9c33915204f4a6c9566273d6cdb"
     },
     {
       "path": "availability-state.v1.json",
       "fixture_type": "availability_state",
       "case_count": 13,
-      "sha256": "322e1bd3d36b3854c9d829b7f32a2170c184838eb3c2013779bde3a054aa6630"
+      "sha256": "f2b62a963fe174591c432fcd1f1b2547ce9297aa8d70865e47e3a348c3f4b8f5"
     },
     {
       "path": "run-state.v1.json",
       "fixture_type": "run_state",
       "case_count": 6,
-      "sha256": "c483a507879bd4a1a71b1e0fc10e5fd6b1738887b3331ae8d09b9613b08c6f09"
+      "sha256": "20742a20c6ea862f4d0dc12810d5a3885e886ebb30c3a07ff2e1ae1b502ec82b"
     },
     {
       "path": "boundary-security.v1.json",
       "fixture_type": "boundary_security",
       "case_count": 5,
-      "sha256": "1ce304656854ba7aede6158e67c533deeec17c04f464296e0bfe409b671dc2c1"
+      "sha256": "2c18ccc8f90702239324b3e1dfe83c0b644c6955c6f388893beddee2bccffeae"
     },
     {
       "path": "persisted-compatibility.v1.json",
       "fixture_type": "persisted_compatibility",
       "case_count": 6,
-      "sha256": "3caacaf8e5fe7d67968008a50802d4f368a4da92d9e5e42be6586966d82fe626"
+      "sha256": "f5728260e17087d886980942d7bddaa1b2e9e38ac4a92354c258b2f5f7ff4580"
     }
   ],
   "case_counts": {

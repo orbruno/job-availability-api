@@ -8,17 +8,17 @@
     {
       "id": "SPEC-018",
       "version": "1.0",
-      "project_path": "_Design/04_Specs/SPEC-018__job-availability-community-node.md"
+      "project_path": "docs/contract-origins.md"
     },
     {
       "id": "SPEC-015",
       "version": "1.2",
-      "project_path": "_Design/04_Specs/SPEC-015__job-availability-monitoring.md"
+      "project_path": "docs/contract-origins.md"
     },
     {
       "id": "PYTHON-BASELINE-STATE",
       "version": "pre-conversion",
-      "project_path": "dev/packages/summarizer/summarizer/services/availability_state.py"
+      "project_path": "docs/contract-origins.md"
     }
   ],
   "cases": [

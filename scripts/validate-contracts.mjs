@@ -10,7 +10,6 @@ import YAML from 'yaml';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const serviceRoot = resolve(scriptDirectory, '..');
-const projectRoot = resolve(serviceRoot, '../..');
 const fixtureDirectory = resolve(serviceRoot, 'test/fixtures');
 const openapiPath = resolve(serviceRoot, 'openapi/job-availability-v1.yaml');
 const publicSchemaPath = resolve(serviceRoot, 'schemas/public-api-v1.schema.json');
@@ -426,7 +425,7 @@ async function main() {
     check(document.cases.length === expectedCount, `${file}: expected ${expectedCount} cases`);
     check(document.contract_version === '1.0.0', `${file}: contract version drifted`);
     for (const sourceContract of document.source_contracts) {
-      await readFile(resolve(projectRoot, sourceContract.project_path), 'utf8');
+      await readFile(resolve(serviceRoot, sourceContract.project_path), 'utf8');
     }
     for (const fixtureCase of document.cases) {
       check(!caseIds.has(fixtureCase.id), `duplicate fixture case ${fixtureCase.id}`);
